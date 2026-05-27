@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perzeptron-Training: Trainingsdaten_Zwei.csv – Schritt für Schritt</title>
+<style>
+  :root {
+    --blue:    #1a3a5c;
+    --gold:    #f0a500;
+    --green:   #2e7d32;
+    --red:     #c62828;
+    --orange:  #e65100;
+    --light:   #f4f7fb;
+    --card:    #ffffff;
+    --border:  #d0d7e3;
+    --text:    #1a1a2e;
+    --muted:   #5a6a80;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 15px;
+    background: var(--light);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: var(--blue);
+    color: #fff;
+    padding: 24px 40px 20px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  }
+  header h1 { font-size: 1.4rem; font-weight: 700; }
+  header p  { font-size: .85rem; color: #aac4e0; margin-top: 4px; }
+
+  /* ─── PROGRESS BAR ─── */
+  #progress-wrap {
+    background: rgba(255,255,255,.15);
+    border-radius: 4px;
+    margin-top: 14px;
+    height: 8px;
+    overflow: hidden;
+  }
+  #progress-bar {
+    height: 100%;
+    background: var(--gold);
+    transition: width .4s;
+    border-radius: 4px;
+  }
+  #step-label { font-size: .78rem; color: #aac4e0; margin-top: 4px; }
+
+  /* ─── NAVIGATION ─── */
+  nav {
+    display: flex;
+    gap: 10px;
+    padding: 16px 40px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  nav button {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: .9rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background .2s, transform .1s;
+  }
+  nav button:active { transform: scale(.97); }
+  #btn-prev { background: #e0e7ef; color: var(--blue); }
+  #btn-next { background: var(--blue); color: #fff; }
+  #btn-prev:hover { background: #cdd6e6; }
+  #btn-next:hover { background: #254d7a; }
+  #btn-prev:disabled, #btn-next:disabled { opacity: .4; cursor: not-allowed; }
+  #toc-toggle {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); padding: 7px 16px;
+    border-radius: 6px; font-size: .85rem;
+  }
+
+  /* ─── TABLE OF CONTENTS ─── */
+  #toc {
+    display: none;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 40px 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #toc.open { display: flex; }
+  #toc button {
+    font-size: .8rem; padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--light);
+    cursor: pointer; color: var(--muted);
+  }
+  #toc button.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  /* ─── MAIN ─── */
+  main { max-width: 960px; margin: 0 auto; padding: 30px 24px 60px; }
+
+  /* ─── SECTION (one per step) ─── */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ─── CARD ─── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .card h2 {
+    font-size: 1.15rem;
+    color: var(--blue);
+    margin-bottom: 14px;
+    border-bottom: 2px solid var(--gold);
+    padding-bottom: 8px;
+  }
+  .card h3 { font-size: 1rem; color: var(--blue); margin: 18px 0 8px; }
+
+  /* ─── BADGE ─── */
+  .badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .badge-update  { background: #fff3e0; color: var(--orange); border: 1px solid var(--orange); }
+  .badge-nochange{ background: #e8f5e9; color: var(--green);  border: 1px solid var(--green); }
+  .badge-correct { background: #e8f5e9; color: var(--green);  border: 1px solid var(--green); }
+  .badge-wrong   { background: #ffebee; color: var(--red);    border: 1px solid var(--red); }
+
+  /* ─── FORMULA TABLE ─── */
+  .formula-table {
+    width: 100%; border-collapse: collapse; margin: 12px 0;
+    font-size: .92rem;
+  }
+  .formula-table td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .formula-table tr:nth-child(even) td { background: var(--light); }
+  .formula-table .label-col { font-weight: 600; color: var(--muted); width: 200px; }
+  .formula-table .formula-col { font-family: "Courier New", monospace; }
+  .formula-table .result-col { font-weight: 700; width: 80px; text-align: center; }
+
+  /* ─── HIGHLIGHT BOXES ─── */
+  .box {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 12px 0;
+    font-size: .93rem;
+  }
+  .box-blue   { background: #e3eef8; border-left: 4px solid var(--blue); }
+  .box-green  { background: #e8f5e9; border-left: 4px solid var(--green); }
+  .box-red    { background: #ffebee; border-left: 4px solid var(--red); }
+  .box-orange { background: #fff3e0; border-left: 4px solid var(--orange); }
+  .box-gold   { background: #fff8e1; border-left: 4px solid var(--gold); }
+
+  /* ─── MATH DISPLAY ─── */
+  .math {
+    font-family: "Courier New", monospace;
+    font-size: .95rem;
+  }
+  .math-block {
+    font-family: "Courier New", monospace;
+    background: #f0f4f8;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    font-size: .93rem;
+    line-height: 1.8;
+  }
+
+  /* ─── PARAMETER STATE ─── */
+  .param-row {
+    display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0;
+  }
+  .param-pill {
+    background: var(--blue);
+    color: #fff;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-size: .9rem;
+    font-weight: 600;
+  }
+  .param-pill span { opacity: .75; font-weight: 400; margin-right: 4px; }
+  .param-changed {
+    background: var(--orange);
+  }
+
+  /* ─── SVG COORDINATE SYSTEM ─── */
+  .coord-wrap { text-align: center; margin: 16px 0; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+
+  /* ─── DATA TABLE ─── */
+  .data-table {
+    width: 100%; border-collapse: collapse; font-size: .92rem; margin: 10px 0;
+  }
+  .data-table th {
+    background: var(--blue); color: #fff;
+    padding: 8px 16px; text-align: left;
+  }
+  .data-table td { padding: 8px 16px; border-bottom: 1px solid var(--border); }
+  .data-table tr:nth-child(even) td { background: var(--light); }
+
+  /* ─── STEP INDICATOR ─── */
+  .step-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+  }
+  .step-circle {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--blue); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; font-weight: 700; flex-shrink: 0;
+  }
+  .step-title { font-size: 1.25rem; font-weight: 700; color: var(--blue); }
+  .step-subtitle { font-size: .88rem; color: var(--muted); }
+
+  /* ─── ALERT ─── */
+  .alert {
+    border-radius: 8px; padding: 14px 18px;
+    margin: 14px 0; font-weight: 600;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .alert-icon { font-size: 1.3rem; flex-shrink: 0; }
+  .alert-green { background: #e8f5e9; color: var(--green); }
+  .alert-red   { background: #ffebee; color: var(--red); }
+  .alert-blue  { background: #e3eef8; color: var(--blue); }
+  .alert-gold  { background: #fff8e1; color: #7a5800; }
+
+  /* ─── SEPARATOR LINE DISPLAY ─── */
+  .trenngerade {
+    background: #1a3a5c;
+    color: #fff;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-family: "Courier New", monospace;
+    font-size: 1rem;
+    margin: 10px 0;
+    display: inline-block;
+  }
+
+  ul.explanation { padding-left: 22px; margin: 8px 0; }
+  ul.explanation li { margin: 4px 0; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--muted);
+    font-size: .82rem;
+    border-top: 1px solid var(--border);
+    background: #fff;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════════════════ -->
+<header>
+  <h1>Perzeptron-Training – Schritt für Schritt</h1>
+  <p>Datensatz: <strong>Trainingsdaten_Zwei.csv</strong> &nbsp;|&nbsp; Modus: Lineare Klassifikation</p>
+  <div id="progress-wrap"><div id="progress-bar" style="width:0%"></div></div>
+  <div id="step-label">Schritt 0 von 11</div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════
+     NAVIGATION
+══════════════════════════════════════════════════════════ -->
+<nav>
+  <button id="btn-prev" onclick="changeStep(-1)" disabled>&#8592; Zurück</button>
+  <button id="btn-next" onclick="changeStep(+1)">Weiter &#8594;</button>
+  <button id="toc-toggle" onclick="toggleToc()">&#9776; Übersicht</button>
+</nav>
+<div id="toc">
+  <!-- filled by JS -->
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════════════════ -->
+<main>
+
+<!-- ────────────────────────────────────────────
+  SECTION 0 – Einleitung & Datensatz
+──────────────────────────────────────────── -->
+<section class="section active" id="sec-0">
+  <div class="step-header">
+    <div class="step-circle">&#9432;</div>
+    <div>
+      <div class="step-title">Einführung und Datensatz</div>
+      <div class="step-subtitle">Was wird trainiert und womit?</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Der Datensatz: Trainingsdaten_Zwei.csv</h2>
+    <p>Der Datensatz besteht aus nur <strong>zwei Trainingsdatenpunkten</strong> mit je zwei Merkmalen (<em>Merkmal A</em> und <em>Merkmal B</em>) und einem Label (0 oder 1), das die Zugehörigkeit zu einer der zwei Klassen angibt.</p>
+    <table class="data-table" style="margin-top:14px">
+      <thead>
+        <tr><th>#</th><th>Merkmal A (x₁)</th><th>Merkmal B (x₂)</th><th>Label (Zielklasse)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Punkt 1</td><td>1</td><td>3</td><td><strong style="color:var(--blue)">1</strong> (Klasse 1)</td></tr>
+        <tr><td>Punkt 2</td><td>2</td><td>3</td><td><strong style="color:var(--red)">0</strong> (Klasse 0)</td></tr>
+      </tbody>
+    </table>
+    <div class="box box-blue" style="margin-top:14px">
+      <strong>Aufgabe des Perzeptrons:</strong> Es soll lernen, Punkt 1 der Klasse 1 und Punkt 2 der Klasse 0 zuzuordnen – und dazu eine Trenngerade im 2D-Koordinatensystem finden.
+    </div>
+
+    <div class="coord-wrap">
+      <svg width="340" height="280" viewBox="-20 -20 340 280">
+        <!-- Koordinatensystem -->
+        <line x1="30" y1="240" x2="310" y2="240" stroke="#666" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="30" y1="240" x2="30" y2="10" stroke="#666" stroke-width="1.5" marker-end="url(#arr)"/>
+        <defs>
+          <marker id="arr" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L8,4 L0,8 z" fill="#666"/>
+          </marker>
+        </defs>
+        <!-- Gitternetz -->
+        <g stroke="#e0e0e0" stroke-width="1">
+          <line x1="90"  y1="240" x2="90"  y2="15"/>
+          <line x1="150" y1="240" x2="150" y2="15"/>
+          <line x1="210" y1="240" x2="210" y2="15"/>
+          <line x1="270" y1="240" x2="270" y2="15"/>
+          <line x1="30" y1="180" x2="305" y2="180"/>
+          <line x1="30" y1="120" x2="305" y2="120"/>
+          <line x1="30" y1="60"  x2="305" y2="60"/>
+        </g>
+        <!-- Achsenbeschriftung -->
+        <text x="315" y="244" font-size="13" fill="#666">x₁</text>
+        <text x="34"  y="8"   font-size="13" fill="#666">x₂</text>
+        <text x="87"  y="255" font-size="11" fill="#888">1</text>
+        <text x="147" y="255" font-size="11" fill="#888">2</text>
+        <text x="207" y="255" font-size="11" fill="#888">3</text>
+        <text x="267" y="255" font-size="11" fill="#888">4</text>
+        <text x="12"  y="183" font-size="11" fill="#888">1</text>
+        <text x="12"  y="123" font-size="11" fill="#888">2</text>
+        <text x="12"  y="63"  font-size="11" fill="#888">3</text>
+        <!-- Datenpunkte: x₁=1→90, x₂=3→60 -->
+        <circle cx="90" cy="60" r="10" fill="#1a3a5c" stroke="white" stroke-width="2"/>
+        <text x="105" y="55" font-size="12" fill="#1a3a5c" font-weight="bold">(1, 3) → Klasse 1</text>
+        <!-- Datenpunkt 2: x₁=2→150, x₂=3→60 -->
+        <circle cx="150" cy="60" r="10" fill="#c62828" stroke="white" stroke-width="2"/>
+        <text x="165" y="55" font-size="12" fill="#c62828" font-weight="bold">(2, 3) → Klasse 0</text>
+        <!-- Legende -->
+        <circle cx="50" cy="200" r="7" fill="#1a3a5c"/>
+        <text x="62" y="204" font-size="11" fill="#333">Klasse 1</text>
+        <circle cx="50" cy="220" r="7" fill="#c62828"/>
+        <text x="62" y="224" font-size="11" fill="#333">Klasse 0</text>
+      </svg>
+    </div>
+    <p style="font-size:.85rem;color:var(--muted);text-align:center">Beide Punkte haben denselben x₂-Wert (Merkmal B = 3), unterscheiden sich aber in x₁.</p>
+  </div>
+
+  <div class="card">
+    <h2>Grundlagen: Das Perzeptron</h2>
+    <div class="two-col">
+      <div>
+        <h3>Berechnung der Ausgabe</h3>
+        <p>Das Perzeptron berechnet zunächst die <strong>gewichtete Summe</strong> (net-input):</p>
+        <div class="math-block">
+          net = w₁ · x₁ + w₂ · x₂
+        </div>
+        <p>Die <strong>Heaviside-Aktivierungsfunktion</strong> liefert:</p>
+        <div class="math-block">
+          y = 1,  falls net ≥ θ<br>
+          y = 0,  falls net &lt; θ
+        </div>
+        <p style="font-size:.85rem;color:var(--muted)">θ ist der Schwellenwert. Bei Gleichheit (net = θ) gibt das Perzeptron 1 aus (≥-Bedingung).</p>
+      </div>
+      <div>
+        <h3>Gewichtsanpassung (Lernregel)</h3>
+        <p>Fehler: <span class="math">δ = t − y</span> (Ziel minus Ausgabe)</p>
+        <div class="math-block">
+          w₁ := w₁ + δ · α · x₁<br>
+          w₂ := w₂ + δ · α · x₂<br>
+          θ  := θ − δ · α · 1
+        </div>
+        <p style="font-size:.85rem;color:var(--muted)">α ist die Lernrate. Ist δ = 0, bleibt alles unverändert. Der Schwellenwert θ wird entgegengesetzt zu den Gewichten angepasst (Minuszeichen).</p>
+      </div>
+    </div>
+
+    <h3>Trenngerade</h3>
+    <p>Das Perzeptron teilt den 2D-Raum durch eine Gerade. Sie ergibt sich aus der Bedingung <span class="math">w₁·x₁ + w₂·x₂ = θ</span>, umgeformt nach x₂:</p>
+    <div class="math-block">
+      x₂ = (θ − w₁·x₁) / w₂ = (θ/w₂) − (w₁/w₂) · x₁
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Startparameter (Standardwerte des Simulators)</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> 1</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+      <div class="param-pill"><span>α =</span> 1</div>
+    </div>
+    <h3>Initiale Trenngerade</h3>
+    <p>Mit w₁=1, w₂=1, θ=1 ergibt sich als Ausgangstrenngerade:</p>
+    <div class="math-block">
+      1·x₁ + 1·x₂ = 1<br>
+      ⟹  x₂ = 1 − x₁
+    </div>
+    <div class="alert alert-gold">
+      <span class="alert-icon">&#9888;</span>
+      <div>Schnell-Check vor dem Training: Punkt 1 (1,3): net = 1·1 + 1·3 = 4 ≥ 1 → Ausgabe 1 ✓&nbsp; | &nbsp;Punkt 2 (2,3): net = 1·2 + 1·3 = 5 ≥ 1 → Ausgabe 1 ✗ (sollte 0 sein). Das Perzeptron klassifiziert Punkt 2 falsch – das Training ist nötig!</div>
+    </div>
+    <p>Klicken Sie auf <strong>Weiter</strong>, um den ersten Trainingsschritt zu beginnen.</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────
+  SECTION 1 – Schritt 1
+──────────────────────────────────────────── -->
+<section class="section" id="sec-1">
+  <div class="step-header">
+    <div class="step-circle">1</div>
+    <div>
+      <div class="step-title">Trainingsschritt 1 <span class="badge badge-nochange">Kein Update</span></div>
+      <div class="step-subtitle">Datenpunkt 1: (x₁=1, x₂=3, t=1)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Aktuelle Parameter zu Beginn von Schritt 1</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> 1</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Phase 1: Berechnung der gewichteten Summe (net-input)</h2>
+    <div class="math-block">
+      net = w₁ · x₁ + w₂ · x₂<br>
+      net = 1 · 1 + 1 · 3<br>
+      net = 1 + 3<br>
+      net = <strong>4</strong>
+    </div>
+
+    <h2 style="margin-top:18px">Phase 2: Aktivierungsfunktion (Heaviside)</h2>
+    <div class="math-block">
+      Ist net ≥ θ?<br>
+      Ist 4 ≥ 1?  → <strong>Ja</strong><br>
+      ⟹  Ausgabe y = <strong>1</strong>
+    </div>
+    <div class="alert alert-green">
+      <span class="alert-icon">✓</span>
+      <div>Berechnete Ausgabe <strong>y = 1</strong> stimmt mit dem Zielwert <strong>t = 1</strong> überein.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Phase 3: Fehlerberechnung und Gewichtsanpassung</h2>
+    <div class="math-block">
+      δ = t − y = 1 − 1 = <strong>0</strong>
+    </div>
+    <div class="alert alert-blue">
+      <span class="alert-icon">&#8680;</span>
+      <div>Da δ = 0, werden <strong>keine Gewichte angepasst</strong>. Das Perzeptron hat diesen Datenpunkt bereits korrekt klassifiziert.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnis nach Schritt 1</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> 1</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+    </div>
+    <h3>Trenngerade (unverändert)</h3>
+    <div class="trenngerade">1,0·x₁ + 1,0·x₂ = 1,0</div>
+    <p style="margin-top:8px;font-size:.88rem">Explizit: x₂ = 1 − x₁</p>
+    <p style="margin-top:12px;font-size:.85rem;color:var(--muted)">Korrekt klassifiziert: 1 von 2 Punkten (Punkt 2 ist noch falsch klassifiziert). ➜ Schritt 2 trainiert Punkt 2.</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────
+  SECTION 2 – Schritt 2
+──────────────────────────────────────────── -->
+<section class="section" id="sec-2">
+  <div class="step-header">
+    <div class="step-circle">2</div>
+    <div>
+      <div class="step-title">Trainingsschritt 2 <span class="badge badge-update">Gewichte angepasst</span></div>
+      <div class="step-subtitle">Datenpunkt 2: (x₁=2, x₂=3, t=0)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Aktuelle Parameter zu Beginn von Schritt 2</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> 1</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Phase 1: Gewichtete Summe</h2>
+    <div class="math-block">
+      net = w₁ · x₁ + w₂ · x₂<br>
+      net = 1 · 2 + 1 · 3<br>
+      net = 2 + 3<br>
+      net = <strong>5</strong>
+    </div>
+
+    <h2 style="margin-top:18px">Phase 2: Aktivierungsfunktion</h2>
+    <div class="math-block">
+      Ist net ≥ θ?<br>
+      Ist 5 ≥ 1?  → <strong>Ja</strong><br>
+      ⟹  Ausgabe y = <strong>1</strong>
+    </div>
+    <div class="alert alert-red">
+      <span class="alert-icon">✗</span>
+      <div>Berechnete Ausgabe <strong>y = 1</strong>, aber Zielwert ist <strong>t = 0</strong> → Falsche Klassifikation!</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Phase 3: Fehlerberechnung</h2>
+    <div class="math-block">
+      δ = t − y = 0 − 1 = <strong>−1</strong>
+    </div>
+    <p>Da δ ≠ 0, werden die Gewichte angepasst:</p>
+
+    <h2 style="margin-top:18px">Gewichtsanpassung (mit α = 1)</h2>
+    <table class="formula-table">
+      <tr>
+        <td class="label-col">w₁ (neu)</td>
+        <td class="formula-col">= w₁ + δ · α · x₁ = 1 + (−1) · 1 · 2 = 1 − 2</td>
+        <td class="result-col" style="color:var(--orange)"><strong>−1</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">w₂ (neu)</td>
+        <td class="formula-col">= w₂ + δ · α · x₂ = 1 + (−1) · 1 · 3 = 1 − 3</td>
+        <td class="result-col" style="color:var(--orange)"><strong>−2</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">θ (neu)</td>
+        <td class="formula-col">= θ − δ · α · 1 = 1 − (−1) · 1 · 1 = 1 + 1</td>
+        <td class="result-col" style="color:var(--orange)"><strong>2</strong></td>
+      </tr>
+    </table>
+    <div class="box box-orange">
+      <strong>Intuition:</strong> δ = −1 bedeutet, das Perzeptron hat zu viel Aktivierung erzeugt. Die Gewichte w₁ und w₂ werden daher verkleinert (beide werden negativer). Der Schwellenwert θ wird erhöht, damit zukünftig eine höhere gewichtete Summe nötig ist, um Klasse 1 zuzuordnen.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnis nach Schritt 2</h2>
+    <div class="param-row">
+      <div class="param-pill param-changed"><span>w₁ =</span> −1</div>
+      <div class="param-pill param-changed"><span>w₂ =</span> −2</div>
+      <div class="param-pill param-changed"><span>θ =</span> 2</div>
+    </div>
+    <p style="margin-top:10px;font-size:.85rem;color:var(--muted)">Orange = geänderte Parameter</p>
+    <h3>Trenngerade (neu)</h3>
+    <div class="trenngerade">−1,0·x₁ + (−2,0)·x₂ = 2,0</div>
+    <p style="margin-top:8px;font-size:.88rem">Explizit: x₂ = (−x₁ − 2) / 2 = −x₁/2 − 1</p>
+    <div class="alert alert-gold">
+      <span class="alert-icon">&#9888;</span>
+      <div>Schnell-Check: Punkt 1 (1,3): net = (−1)·1 + (−2)·3 = −7 ≥ 2? → Nein → y=0 ✗. Punkt 2 (2,3): net = (−1)·2 + (−2)·3 = −8 ≥ 2? → Nein → y=0 ✓. Punkt 2 jetzt korrekt, Punkt 1 falsch. ➜ Schritt 3 nötig.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────
+  SECTION 3 – Schritt 3
+──────────────────────────────────────────── -->
+<section class="section" id="sec-3">
+  <div class="step-header">
+    <div class="step-circle">3</div>
+    <div>
+      <div class="step-title">Trainingsschritt 3 <span class="badge badge-update">Gewichte angepasst</span></div>
+      <div class="step-subtitle">Datenpunkt 1: (x₁=1, x₂=3, t=1)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Aktuelle Parameter zu Beginn von Schritt 3</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> −1</div>
+      <div class="param-pill"><span>w₂ =</span> −2</div>
+      <div class="param-pill"><span>θ =</span> 2</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Phase 1: Gewichtete Summe</h2>
+    <div class="math-block">
+      net = (−1) · 1 + (−2) · 3<br>
+      net = −1 + (−6)<br>
+      net = <strong>−7</strong>
+    </div>
+
+    <h2 style="margin-top:18px">Phase 2: Aktivierungsfunktion</h2>
+    <div class="math-block">
+      Ist net ≥ θ?<br>
+      Ist −7 ≥ 2?  → <strong>Nein</strong><br>
+      ⟹  Ausgabe y = <strong>0</strong>
+    </div>
+    <div class="alert alert-red">
+      <span class="alert-icon">✗</span>
+      <div>Berechnete Ausgabe <strong>y = 0</strong>, aber Zielwert ist <strong>t = 1</strong> → Falsche Klassifikation!</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Phase 3: Fehlerberechnung und Gewichtsanpassung</h2>
+    <div class="math-block">
+      δ = t − y = 1 − 0 = <strong>+1</strong>
+    </div>
+    <table class="formula-table">
+      <tr>
+        <td class="label-col">w₁ (neu)</td>
+        <td class="formula-col">= −1 + 1 · 1 · 1 = −1 + 1</td>
+        <td class="result-col" style="color:var(--orange)"><strong>0</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">w₂ (neu)</td>
+        <td class="formula-col">= −2 + 1 · 1 · 3 = −2 + 3</td>
+        <td class="result-col" style="color:var(--orange)"><strong>1</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">θ (neu)</td>
+        <td class="formula-col">= 2 − 1 · 1 · 1 = 2 − 1</td>
+        <td class="result-col" style="color:var(--orange)"><strong>1</strong></td>
+      </tr>
+    </table>
+    <div class="box box-orange">
+      <strong>Intuition:</strong> δ = +1 bedeutet, das Perzeptron hat zu wenig Aktivierung. Die Gewichte werden erhöht und der Schwellenwert gesenkt, um in Zukunft eher Klasse 1 auszugeben.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnis nach Schritt 3</h2>
+    <div class="param-row">
+      <div class="param-pill param-changed"><span>w₁ =</span> 0</div>
+      <div class="param-pill param-changed"><span>w₂ =</span> 1</div>
+      <div class="param-pill param-changed"><span>θ =</span> 1</div>
+    </div>
+    <h3>Trenngerade (neu)</h3>
+    <div class="trenngerade">0,0·x₁ + 1,0·x₂ = 1,0</div>
+    <p style="margin-top:8px;font-size:.88rem">Explizit: x₂ = 1 (waagrechte Linie)</p>
+    <div class="alert alert-gold">
+      <span class="alert-icon">&#9888;</span>
+      <div>Punkt 1 (1,3): net = 0+3 = 3 ≥ 1 → y=1 ✓. Punkt 2 (2,3): net = 0+3 = 3 ≥ 1 → y=1 ✗. Trenngerade bei x₂=1 trennt noch nicht korrekt – beide liegen bei x₂=3 auf der gleichen Seite. ➜ Schritt 4 nötig.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────
+  SECTION 4 – Schritt 4
+──────────────────────────────────────────── -->
+<section class="section" id="sec-4">
+  <div class="step-header">
+    <div class="step-circle">4</div>
+    <div>
+      <div class="step-title">Trainingsschritt 4 <span class="badge badge-update">Gewichte angepasst</span></div>
+      <div class="step-subtitle">Datenpunkt 2: (x₁=2, x₂=3, t=0)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Aktuelle Parameter</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> 0</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Berechnung</h2>
+    <div class="math-block">
+      net = 0 · 2 + 1 · 3 = 0 + 3 = <strong>3</strong><br>
+      Ist 3 ≥ 1?  → <strong>Ja</strong> → y = <strong>1</strong>
+    </div>
+    <div class="alert alert-red">
+      <span class="alert-icon">✗</span>
+      <div>y = 1, erwartet t = 0 → Falsche Klassifikation!</div>
+    </div>
+
+    <h2 style="margin-top:18px">Gewichtsanpassung (δ = 0 − 1 = −1)</h2>
+    <table class="formula-table">
+      <tr>
+        <td class="label-col">w₁ (neu)</td>
+        <td class="formula-col">= 0 + (−1) · 1 · 2 = 0 − 2</td>
+        <td class="result-col" style="color:var(--orange)"><strong>−2</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">w₂ (neu)</td>
+        <td class="formula-col">= 1 + (−1) · 1 · 3 = 1 − 3</td>
+        <td class="result-col" style="color:var(--orange)"><strong>−2</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">θ (neu)</td>
+        <td class="formula-col">= 1 − (−1) · 1 = 1 + 1</td>
+        <td class="result-col" style="color:var(--orange)"><strong>2</strong></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnis nach Schritt 4</h2>
+    <div class="param-row">
+      <div class="param-pill param-changed"><span>w₁ =</span> −2</div>
+      <div class="param-pill param-changed"><span>w₂ =</span> −2</div>
+      <div class="param-pill param-changed"><span>θ =</span> 2</div>
+    </div>
+    <h3>Trenngerade (neu)</h3>
+    <div class="trenngerade">−2,0·x₁ + (−2,0)·x₂ = 2,0</div>
+    <p style="margin-top:8px;font-size:.88rem">Explizit: x₂ = (−2x₁ − 2) / 2 = −x₁ − 1</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────
+  SECTION 5 – Schritt 5
+──────────────────────────────────────────── -->
+<section class="section" id="sec-5">
+  <div class="step-header">
+    <div class="step-circle">5</div>
+    <div>
+      <div class="step-title">Trainingsschritt 5 <span class="badge badge-update">Gewichte angepasst</span></div>
+      <div class="step-subtitle">Datenpunkt 1: (x₁=1, x₂=3, t=1)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Aktuelle Parameter</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> −2</div>
+      <div class="param-pill"><span>w₂ =</span> −2</div>
+      <div class="param-pill"><span>θ =</span> 2</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Berechnung</h2>
+    <div class="math-block">
+      net = (−2) · 1 + (−2) · 3 = −2 + (−6) = <strong>−8</strong><br>
+      Ist −8 ≥ 2?  → <strong>Nein</strong> → y = <strong>0</strong>
+    </div>
+    <div class="alert alert-red">
+      <span class="alert-icon">✗</span>
+      <div>y = 0, erwartet t = 1 → Falsche Klassifikation!</div>
+    </div>
+
+    <h2 style="margin-top:18px">Gewichtsanpassung (δ = 1 − 0 = +1)</h2>
+    <table class="formula-table">
+      <tr>
+        <td class="label-col">w₁ (neu)</td>
+        <td class="formula-col">= −2 + 1 · 1 · 1 = −2 + 1</td>
+        <td class="result-col" style="color:var(--orange)"><strong>−1</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">w₂ (neu)</td>
+        <td class="formula-col">= −2 + 1 · 1 · 3 = −2 + 3</td>
+        <td class="result-col" style="color:var(--orange)"><strong>1</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">θ (neu)</td>
+        <td class="formula-col">= 2 − 1 · 1 = 2 − 1</td>
+        <td class="result-col" style="color:var(--orange)"><strong>1</strong></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnis nach Schritt 5</h2>
+    <div class="param-row">
+      <div class="param-pill param-changed"><span>w₁ =</span> −1</div>
+      <div class="param-pill param-changed"><span>w₂ =</span> 1</div>
+      <div class="param-pill param-changed"><span>θ =</span> 1</div>
+    </div>
+    <h3>Trenngerade (neu)</h3>
+    <div class="trenngerade">−1,0·x₁ + 1,0·x₂ = 1,0</div>
+    <p style="margin-top:8px;font-size:.88rem">Explizit: x₂ = x₁ + 1</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────
+  SECTION 6 – Schritt 6
+──────────────────────────────────────────── -->
+<section class="section" id="sec-6">
+  <div class="step-header">
+    <div class="step-circle">6</div>
+    <div>
+      <div class="step-title">Trainingsschritt 6 <span class="badge badge-update">Gewichte angepasst</span></div>
+      <div class="step-subtitle">Datenpunkt 2: (x₁=2, x₂=3, t=0)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Aktuelle Parameter</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> −1</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Berechnung</h2>
+    <div class="math-block">
+      net = (−1) · 2 + 1 · 3 = −2 + 3 = <strong>1</strong><br>
+      Ist 1 ≥ 1?  → <strong>Ja</strong> (genau gleich!) → y = <strong>1</strong>
+    </div>
+    <div class="box box-blue" style="margin-top:10px">
+      <strong>Wichtiger Hinweis:</strong> Die Heaviside-Funktion verwendet ≥ (größer oder gleich). Da net = θ = 1, gibt das Perzeptron 1 aus – obwohl Punkt 2 auf der Trenngerade liegt!
+    </div>
+    <div class="alert alert-red">
+      <span class="alert-icon">✗</span>
+      <div>y = 1, erwartet t = 0 → Falsche Klassifikation! (Grenzfall: Punkt liegt exakt auf der Trenngerade)</div>
+    </div>
+
+    <h2 style="margin-top:18px">Gewichtsanpassung (δ = 0 − 1 = −1)</h2>
+    <table class="formula-table">
+      <tr>
+        <td class="label-col">w₁ (neu)</td>
+        <td class="formula-col">= −1 + (−1) · 1 · 2 = −1 − 2</td>
+        <td class="result-col" style="color:var(--orange)"><strong>−3</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">w₂ (neu)</td>
+        <td class="formula-col">= 1 + (−1) · 1 · 3 = 1 − 3</td>
+        <td class="result-col" style="color:var(--orange)"><strong>−2</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">θ (neu)</td>
+        <td class="formula-col">= 1 − (−1) · 1 = 1 + 1</td>
+        <td class="result-col" style="color:var(--orange)"><strong>2</strong></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnis nach Schritt 6</h2>
+    <div class="param-row">
+      <div class="param-pill param-changed"><span>w₁ =</span> −3</div>
+      <div class="param-pill param-changed"><span>w₂ =</span> −2</div>
+      <div class="param-pill param-changed"><span>θ =</span> 2</div>
+    </div>
+    <h3>Trenngerade (neu)</h3>
+    <div class="trenngerade">−3,0·x₁ + (−2,0)·x₂ = 2,0</div>
+    <p style="margin-top:8px;font-size:.88rem">Explizit: x₂ = (−3x₁ − 2) / 2 = −1,5·x₁ − 1</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────
+  SECTION 7 – Schritt 7 (Entscheidend!)
+──────────────────────────────────────────── -->
+<section class="section" id="sec-7">
+  <div class="step-header">
+    <div class="step-circle">7</div>
+    <div>
+      <div class="step-title">Trainingsschritt 7 <span class="badge badge-update">Gewichte angepasst</span></div>
+      <div class="step-subtitle">Datenpunkt 1: (x₁=1, x₂=3, t=1) – Letzter Update-Schritt!</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Aktuelle Parameter</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> −3</div>
+      <div class="param-pill"><span>w₂ =</span> −2</div>
+      <div class="param-pill"><span>θ =</span> 2</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Berechnung</h2>
+    <div class="math-block">
+      net = (−3) · 1 + (−2) · 3 = −3 + (−6) = <strong>−9</strong><br>
+      Ist −9 ≥ 2?  → <strong>Nein</strong> → y = <strong>0</strong>
+    </div>
+    <div class="alert alert-red">
+      <span class="alert-icon">✗</span>
+      <div>y = 0, erwartet t = 1 → Falsche Klassifikation!</div>
+    </div>
+
+    <h2 style="margin-top:18px">Gewichtsanpassung (δ = 1 − 0 = +1)</h2>
+    <table class="formula-table">
+      <tr>
+        <td class="label-col">w₁ (neu)</td>
+        <td class="formula-col">= −3 + 1 · 1 · 1 = −3 + 1</td>
+        <td class="result-col" style="color:var(--green)"><strong>−2</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">w₂ (neu)</td>
+        <td class="formula-col">= −2 + 1 · 1 · 3 = −2 + 3</td>
+        <td class="result-col" style="color:var(--green)"><strong>1</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">θ (neu)</td>
+        <td class="formula-col">= 2 − 1 · 1 = 2 − 1</td>
+        <td class="result-col" style="color:var(--green)"><strong>1</strong></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnis nach Schritt 7 – Beide Punkte korrekt!</h2>
+    <div class="param-row">
+      <div class="param-pill param-changed"><span>w₁ =</span> −2</div>
+      <div class="param-pill param-changed"><span>w₂ =</span> 1</div>
+      <div class="param-pill param-changed"><span>θ =</span> 1</div>
+    </div>
+    <h3>Trenngerade (neu)</h3>
+    <div class="trenngerade">−2,0·x₁ + 1,0·x₂ = 1,0</div>
+    <p style="margin-top:8px;font-size:.88rem">Explizit: x₂ = 2·x₁ + 1</p>
+
+    <div class="alert alert-green" style="margin-top:16px">
+      <span class="alert-icon">&#10003;</span>
+      <div>
+        <strong>Überprüfung beider Punkte:</strong><br>
+        Punkt 1 (1,3): net = (−2)·1 + 1·3 = −2 + 3 = <strong>1 ≥ 1</strong> → y = 1 ✓<br>
+        Punkt 2 (2,3): net = (−2)·2 + 1·3 = −4 + 3 = <strong>−1 ≥ 1?</strong> → Nein → y = 0 ✓<br><br>
+        <strong>Beide Punkte werden korrekt klassifiziert!</strong>
+      </div>
+    </div>
+
+    <div class="coord-wrap" style="margin-top:18px">
+      <svg width="340" height="280" viewBox="-20 -20 340 280">
+        <line x1="30" y1="240" x2="310" y2="240" stroke="#666" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <line x1="30" y1="240" x2="30" y2="10" stroke="#666" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <defs>
+          <marker id="arr2" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L8,4 L0,8 z" fill="#666"/>
+          </marker>
+        </defs>
+        <!-- Halbräume: Klasse 1 (links/oben von Linie) grün, Klasse 0 (rechts/unten) rot -->
+        <!-- Trenngerade: x₂ = 2x₁ + 1 → bei x₁=0: x₂=1; bei x₁=1: x₂=3; bei x₁=1.5: x₂=4 -->
+        <!-- Im SVG: x₁→x-Achse: Pixel = 30 + x₁*60; x₂→y-Achse: Pixel = 240 - x₂*60 -->
+        <!-- x₁=0 → px=30, x₂=1 → py=180; x₁=1 → px=90, x₂=3 → py=60; bei x₁=-0.5: x₂=0 -->
+        <!-- Klasse 1 Region (oberhalb der Linie = links) -->
+        <polygon points="30,180 30,10 305,10 305,240 150,240 90,60" fill="#e8f5e9" opacity="0.6"/>
+        <!-- Klasse 0 Region (unterhalb) -->
+        <polygon points="30,240 150,240 90,60 30,180" fill="#ffebee" opacity="0.6"/>
+        <!-- Gitternetz -->
+        <g stroke="#e0e0e0" stroke-width="1">
+          <line x1="90"  y1="240" x2="90"  y2="15"/>
+          <line x1="150" y1="240" x2="150" y2="15"/>
+          <line x1="210" y1="240" x2="210" y2="15"/>
+          <line x1="270" y1="240" x2="270" y2="15"/>
+          <line x1="30" y1="180" x2="305" y2="180"/>
+          <line x1="30" y1="120" x2="305" y2="120"/>
+          <line x1="30" y1="60"  x2="305" y2="60"/>
+        </g>
+        <!-- Trenngerade: x₂=2x₁+1 → (0,1)→(30,180); (1,3)→(90,60) -->
+        <line x1="30" y1="180" x2="110" y2="60" stroke="#1a3a5c" stroke-width="2.5" stroke-dasharray="none"/>
+        <!-- Achsen -->
+        <line x1="30" y1="240" x2="310" y2="240" stroke="#666" stroke-width="1.5"/>
+        <line x1="30" y1="240" x2="30" y2="10" stroke="#666" stroke-width="1.5"/>
+        <!-- Labels -->
+        <text x="315" y="244" font-size="13" fill="#666">x₁</text>
+        <text x="34"  y="8"   font-size="13" fill="#666">x₂</text>
+        <text x="87"  y="255" font-size="11" fill="#888">1</text>
+        <text x="147" y="255" font-size="11" fill="#888">2</text>
+        <text x="207" y="255" font-size="11" fill="#888">3</text>
+        <text x="267" y="255" font-size="11" fill="#888">4</text>
+        <text x="12"  y="183" font-size="11" fill="#888">1</text>
+        <text x="12"  y="123" font-size="11" fill="#888">2</text>
+        <text x="12"  y="63"  font-size="11" fill="#888">3</text>
+        <!-- Datenpunkte -->
+        <circle cx="90" cy="60" r="10" fill="#1a3a5c" stroke="white" stroke-width="2"/>
+        <text x="100" y="50" font-size="11" fill="#1a3a5c" font-weight="bold">(1,3) K1 ✓</text>
+        <circle cx="150" cy="60" r="10" fill="#c62828" stroke="white" stroke-width="2"/>
+        <text x="160" y="50" font-size="11" fill="#c62828" font-weight="bold">(2,3) K0 ✓</text>
+        <!-- Legende Trenngerade -->
+        <text x="112" y="72" font-size="10" fill="#1a3a5c" transform="rotate(-63, 112, 72)">x₂=2x₁+1</text>
+        <!-- Legende Halbräume -->
+        <rect x="170" y="195" width="10" height="10" fill="#e8f5e9" stroke="#2e7d32"/>
+        <text x="184" y="204" font-size="10" fill="#2e7d32">Klasse 1 (y=1)</text>
+        <rect x="170" y="212" width="10" height="10" fill="#ffebee" stroke="#c62828"/>
+        <text x="184" y="221" font-size="10" fill="#c62828">Klasse 0 (y=0)</text>
+      </svg>
+      <p style="font-size:.82rem;color:var(--muted)">Blaue Linie: Trenngerade x₂ = 2·x₁ + 1. Punkt 1 liegt exakt auf der Linie (Klasse 1 dank ≥-Bedingung). Punkt 2 liegt darunter (Klasse 0).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────
+  SECTION 8 – Schritt 8
+──────────────────────────────────────────── -->
+<section class="section" id="sec-8">
+  <div class="step-header">
+    <div class="step-circle">8</div>
+    <div>
+      <div class="step-title">Trainingsschritt 8 <span class="badge badge-nochange">Kein Update</span></div>
+      <div class="step-subtitle">Datenpunkt 2: (x₁=2, x₂=3, t=0) – Verifikationsschritt</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Aktuelle Parameter (unverändert seit Schritt 7)</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> −2</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Berechnung</h2>
+    <div class="math-block">
+      net = (−2) · 2 + 1 · 3 = −4 + 3 = <strong>−1</strong><br>
+      Ist −1 ≥ 1?  → <strong>Nein</strong> → y = <strong>0</strong>
+    </div>
+    <div class="alert alert-green">
+      <span class="alert-icon">✓</span>
+      <div>y = 0 = t → Korrekte Klassifikation! δ = 0 − 0 = 0 → Kein Update.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnis nach Schritt 8</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> −2</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+    </div>
+    <div class="box box-green">
+      Keine Änderung. Das Perzeptron hat Punkt 2 korrekt klassifiziert. ➜ Schritt 9 prüft Punkt 1 erneut.
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────
+  SECTION 9 – Schritt 9
+──────────────────────────────────────────── -->
+<section class="section" id="sec-9">
+  <div class="step-header">
+    <div class="step-circle">9</div>
+    <div>
+      <div class="step-title">Trainingsschritt 9 <span class="badge badge-nochange">Kein Update</span></div>
+      <div class="step-subtitle">Datenpunkt 1: (x₁=1, x₂=3, t=1) – Verifikationsschritt</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Aktuelle Parameter</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> −2</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Berechnung</h2>
+    <div class="math-block">
+      net = (−2) · 1 + 1 · 3 = −2 + 3 = <strong>1</strong><br>
+      Ist 1 ≥ 1?  → <strong>Ja</strong> → y = <strong>1</strong>
+    </div>
+    <div class="alert alert-green">
+      <span class="alert-icon">✓</span>
+      <div>y = 1 = t → Korrekte Klassifikation! δ = 1 − 1 = 0 → Kein Update.</div>
+    </div>
+    <div class="box box-blue" style="margin-top:10px">
+      Auch hier gilt: net = θ = 1 → Grenzfall, Ausgabe = 1 dank der ≥-Bedingung.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnis nach Schritt 9</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> −2</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+    </div>
+    <div class="alert alert-green" style="margin-top:12px">
+      <span class="alert-icon">&#127881;</span>
+      <div>In einem vollständigen Durchlauf (Schritte 8 und 9) wurden beide Datenpunkte ohne Gewichtsanpassung korrekt klassifiziert. <strong>Das Training hat konvergiert!</strong></div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────
+  SECTION 10 – Zusammenfassung
+──────────────────────────────────────────── -->
+<section class="section" id="sec-10">
+  <div class="step-header">
+    <div class="step-circle">&#10003;</div>
+    <div>
+      <div class="step-title">Zusammenfassung – Training abgeschlossen</div>
+      <div class="step-subtitle">Übersicht aller Schritte und Ergebnisse</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Verlauf aller Trainingsschritte</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Schritt</th>
+          <th>Punkt</th>
+          <th>net</th>
+          <th>y</th>
+          <th>t</th>
+          <th>δ</th>
+          <th>w₁ neu</th>
+          <th>w₂ neu</th>
+          <th>θ neu</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td colspan="9" style="background:#e3eef8;font-weight:600;color:var(--blue)">Start: w₁=1, w₂=1, θ=1</td>
+        </tr>
+        <tr>
+          <td>1</td><td>(1,3,1)</td><td>4</td>
+          <td style="color:var(--blue)"><strong>1</strong></td><td>1</td>
+          <td style="color:var(--green)"><strong>0</strong></td>
+          <td>1</td><td>1</td><td>1</td>
+        </tr>
+        <tr style="background:#fff3e0">
+          <td>2</td><td>(2,3,0)</td><td>5</td>
+          <td style="color:var(--red)"><strong>1</strong></td><td>0</td>
+          <td style="color:var(--red)"><strong>−1</strong></td>
+          <td>−1</td><td>−2</td><td>2</td>
+        </tr>
+        <tr style="background:#fff3e0">
+          <td>3</td><td>(1,3,1)</td><td>−7</td>
+          <td style="color:var(--red)"><strong>0</strong></td><td>1</td>
+          <td style="color:var(--red)"><strong>+1</strong></td>
+          <td>0</td><td>1</td><td>1</td>
+        </tr>
+        <tr style="background:#fff3e0">
+          <td>4</td><td>(2,3,0)</td><td>3</td>
+          <td style="color:var(--red)"><strong>1</strong></td><td>0</td>
+          <td style="color:var(--red)"><strong>−1</strong></td>
+          <td>−2</td><td>−2</td><td>2</td>
+        </tr>
+        <tr style="background:#fff3e0">
+          <td>5</td><td>(1,3,1)</td><td>−8</td>
+          <td style="color:var(--red)"><strong>0</strong></td><td>1</td>
+          <td style="color:var(--red)"><strong>+1</strong></td>
+          <td>−1</td><td>1</td><td>1</td>
+        </tr>
+        <tr style="background:#fff3e0">
+          <td>6</td><td>(2,3,0)</td><td>1</td>
+          <td style="color:var(--red)"><strong>1</strong></td><td>0</td>
+          <td style="color:var(--red)"><strong>−1</strong></td>
+          <td>−3</td><td>−2</td><td>2</td>
+        </tr>
+        <tr style="background:#fff3e0">
+          <td>7</td><td>(1,3,1)</td><td>−9</td>
+          <td style="color:var(--red)"><strong>0</strong></td><td>1</td>
+          <td style="color:var(--red)"><strong>+1</strong></td>
+          <td style="color:var(--green);font-weight:bold">−2</td>
+          <td style="color:var(--green);font-weight:bold">1</td>
+          <td style="color:var(--green);font-weight:bold">1</td>
+        </tr>
+        <tr>
+          <td>8</td><td>(2,3,0)</td><td>−1</td>
+          <td style="color:var(--blue)"><strong>0</strong></td><td>0</td>
+          <td style="color:var(--green)"><strong>0</strong></td>
+          <td>−2</td><td>1</td><td>1</td>
+        </tr>
+        <tr>
+          <td>9</td><td>(1,3,1)</td><td>1</td>
+          <td style="color:var(--blue)"><strong>1</strong></td><td>1</td>
+          <td style="color:var(--green)"><strong>0</strong></td>
+          <td>−2</td><td>1</td><td>1</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:.82rem;color:var(--muted);margin-top:8px">Orange hinterlegt = Gewichtsanpassung erfolgt. Grün = korrekte Klassifikation ohne Update.</p>
+  </div>
+
+  <div class="card">
+    <h2>Finale Parameter und Trenngerade</h2>
+    <div class="param-row">
+      <div class="param-pill"><span>w₁ =</span> −2</div>
+      <div class="param-pill"><span>w₂ =</span> 1</div>
+      <div class="param-pill"><span>θ =</span> 1</div>
+    </div>
+    <h3>Gleichung der Trenngerade</h3>
+    <div class="trenngerade">−2,0·x₁ + 1,0·x₂ = 1,0</div>
+    <p style="margin-top:8px">Umgeformt nach x₂:</p>
+    <div class="math-block">
+      x₂ = (θ − w₁·x₁) / w₂<br>
+      x₂ = (1 − (−2)·x₁) / 1<br>
+      x₂ = 2·x₁ + 1
+    </div>
+    <p><strong>Steigung:</strong> 2 (für jeden Schritt in x₁-Richtung steigt die Linie um 2 in x₂-Richtung)<br>
+    <strong>y-Achsenabschnitt:</strong> 1</p>
+
+    <h3 style="margin-top:18px">Korrektheit der Trenngerade</h3>
+    <table class="data-table">
+      <thead><tr><th>Punkt</th><th>Berechnung</th><th>Ergebnis</th><th>Ziel</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>(1, 3)</td>
+          <td class="math">(−2)·1 + 1·3 = 1 ≥ 1</td>
+          <td>y = 1</td>
+          <td>t = 1</td>
+          <td style="color:var(--green)"><strong>✓ Korrekt</strong></td>
+        </tr>
+        <tr>
+          <td>(2, 3)</td>
+          <td class="math">(−2)·2 + 1·3 = −1 &lt; 1</td>
+          <td>y = 0</td>
+          <td>t = 0</td>
+          <td style="color:var(--green)"><strong>✓ Korrekt</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Schlussfolgerungen</h2>
+    <ul class="explanation">
+      <li>Das Training benötigte <strong>7 Schritte mit Gewichtsanpassung</strong> (Schritt 1 und Schritte 8–9 hatten δ = 0).</li>
+      <li>Der Simulator zählt <strong>alle Trainingsschritte</strong> (inkl. δ=0), daher zeigt er nach Konvergenz 9 bisherige Trainingsschritte an.</li>
+      <li>Der <strong>Schwellenwert θ</strong> wurde stets entgegengesetzt zu den Gewichten angepasst (Minuszeichen in der Lernregel).</li>
+      <li>Punkt 1 (1,3) liegt auf der Trenngerade (net = θ = 1). Das Perzeptron gibt aufgrund der ≥-Bedingung korrekt 1 aus.</li>
+      <li>Eine eindeutige <strong>Trennung</strong> der beiden Klassen ist möglich, weil die Punkte trotz gleichem x₂-Wert durch eine Gerade mit negativer Steigung in x₁ trennbar sind.</li>
+      <li>Das <strong>Perzeptron-Konvergenz-Theorem</strong> garantiert, dass der Algorithmus für linear trennbare Datensätze immer konvergiert.</li>
+    </ul>
+
+    <div class="box box-blue" style="margin-top:18px">
+      <strong>Vergleich mit dem Simulator:</strong> Im Trainingsprotokoll des Simulators werden nur Schritte mit δ ≠ 0 im Gewichtsverlauf gespeichert und mit Pfeilen (→) angezeigt. Die Fortschrittsleiste zeigt nach Abschluss 2 von 2 korrekt klassifizierte Punkte (100 %).
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ══════════════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════════════ -->
+<footer>
+  Datensatz: Trainingsdaten_Zwei.csv &nbsp;|&nbsp; Simulator: Perzeptron Simulator Beta 1.4 &nbsp;|&nbsp; Didaktik der Informatik – Universität Passau (Tobias Fuchs, Wolfgang Pfeffer) &nbsp;|&nbsp; Material für den Informatikunterricht 11. Klasse
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════ -->
+<script>
+  const TOTAL = 11; // sections 0..10
+  let current = 0;
+
+  const tocLabels = [
+    "Einführung",
+    "Schritt 1 (kein Update)",
+    "Schritt 2 (Update)",
+    "Schritt 3 (Update)",
+    "Schritt 4 (Update)",
+    "Schritt 5 (Update)",
+    "Schritt 6 (Update)",
+    "Schritt 7 (letzter Update)",
+    "Schritt 8 (kein Update)",
+    "Schritt 9 (kein Update)",
+    "Zusammenfassung"
+  ];
+
+  // build TOC
+  const toc = document.getElementById('toc');
+  tocLabels.forEach((label, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.onclick = () => { goTo(i); toggleToc(); };
+    btn.id = 'toc-btn-' + i;
+    toc.appendChild(btn);
+  });
+
+  function goTo(n) {
+    document.getElementById('sec-' + current).classList.remove('active');
+    document.getElementById('toc-btn-' + current).classList.remove('active');
+    current = n;
+    document.getElementById('sec-' + current).classList.add('active');
+    document.getElementById('toc-btn-' + current).classList.add('active');
+    updateUI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function changeStep(dir) {
+    const next = current + dir;
+    if (next < 0 || next >= TOTAL) return;
+    goTo(next);
+  }
+
+  function updateUI() {
+    document.getElementById('btn-prev').disabled = current === 0;
+    document.getElementById('btn-next').disabled = current === TOTAL - 1;
+    document.getElementById('progress-bar').style.width = ((current / (TOTAL - 1)) * 100) + '%';
+    document.getElementById('step-label').textContent =
+      (current === 0 ? 'Einführung' : current === TOTAL - 1 ? 'Zusammenfassung' : 'Trainingsschritt ' + current) +
+      ' – ' + (current + 1) + ' von ' + TOTAL;
+    document.getElementById('btn-next').textContent =
+      current === TOTAL - 1 ? 'Ende' : 'Weiter →';
+  }
+
+  function toggleToc() {
+    toc.classList.toggle('open');
+  }
+
+  // init
+  goTo(0);
+</script>
+
+</body>
+</html>
